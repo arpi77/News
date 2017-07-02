@@ -1,36 +1,69 @@
 package com.happypath.news;
 
-import android.support.v7.app.AppCompatActivity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.design.widget.BaseTransientBottomBar;
+import android.support.design.widget.CoordinatorLayout;
+import android.support.design.widget.Snackbar;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.View;
+import android.widget.Toast;
 
-import com.happypath.news.model.NewsArticle;
+import com.happypath.news.model.GetArticlesResponse;
+import com.happypath.news.networking.NewsAPI;
 
-import java.util.ArrayList;
-import java.util.List;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
     private RecyclerView recyclerView;
+    private CoordinatorLayout coordinatorLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        List<NewsArticle> newsArticles = new ArrayList<>();
-        newsArticles.add(new NewsArticle("Winners and losers in Amazon’s $13.7B purchase of Whole Foods", "Amazon is taking a huge bite out of the fresh food business with its bid for Whole Foods Market for $13.7 billion. But even though this is a deal between two companies, it’s not just the two of them being touched by it.",
-                "Today", "https://tctechcrunch2011.files.wordpress.com/2016/06/fresh-97.jpg?w=1029", "https://techcrunch.com/2017/06/16/winners-and-losers-in-amazons-13-7b-purchase-of-whole-foods/"));
-
-        newsArticles.add(new NewsArticle("Amazon buys Whole Foods", "Amazon scared investors away from competing grocery stores today when it acquired Whole Foods for $13.7 billion. Wal-Mart, Target, Costco, Kroger, and more all saw their share prices sink dramatically.",
-                "Today", "https://tctechcrunch2011.files.wordpress.com/2017/06/grocery-stores-plummet.jpg?w=1029", "https://techcrunch.com/2017/06/16/foodpocalypse/"));
-
-        NewsStore.setNewsArticles(newsArticles);
         recyclerView = (RecyclerView) findViewById(R.id.activity_main_recycleView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        HomeNewsAdapter homeNewsAdapter = new HomeNewsAdapter(NewsStore.getNewsArticles());
-        recyclerView.setAdapter(homeNewsAdapter);
+        coordinatorLayout = (CoordinatorLayout) findViewById(R.id.activity_main);
+
+        Call<GetArticlesResponse> call = NewsAPI.getApi().getArticles("reuters", "top");
+        call.enqueue(new Callback<GetArticlesResponse>() {
+            @Override
+            public void onResponse(Call<GetArticlesResponse> call, Response<GetArticlesResponse> response) {
+                showNewsApiSnack();
+                GetArticlesResponse body = response.body();
+                NewsStore.setNewsArticles(body.getArticles());
+                Toast.makeText(MainActivity.this, "Response received", Toast.LENGTH_SHORT).show();
+                HomeNewsAdapter homeNewsAdapter = new HomeNewsAdapter(NewsStore.getNewsArticles());
+                recyclerView.setAdapter(homeNewsAdapter);
+            }
+
+            @Override
+            public void onFailure(Call<GetArticlesResponse> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "Response failed", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void showNewsApiSnack() {
+        Snackbar.make(coordinatorLayout, "Powered by NewsApi.org", BaseTransientBottomBar.LENGTH_LONG)
+                .setAction("visit", new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        loadNewsApiWebsite();
+                    }
+                }).show();
+    }
+
+    private void loadNewsApiWebsite() {
+        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://newsapi.org")));
     }
 }
